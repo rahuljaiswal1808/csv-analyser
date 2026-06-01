@@ -3,7 +3,6 @@ import { createReadStream } from 'fs';
 import { parse } from 'csv-parse';
 import { program } from 'commander';
 import chalk from 'chalk';
-import Anthropic from '@anthropic-ai/sdk';
 
 async function readCSV(filePath) {
   return new Promise((resolve, reject) => {
@@ -48,46 +47,6 @@ function drawBarChart(entries, column) {
   }
 }
 
-async function generateSummary(records, column, entries) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    console.log(chalk.yellow('\nSkipping AI summary: ANTHROPIC_API_KEY not set.'));
-    return;
-  }
-
-  const client = new Anthropic({ apiKey });
-  const columns = Object.keys(records[0]);
-  const top10 = entries.slice(0, 10).map(([k, v]) => `${k}: ${v}`).join(', ');
-  const totalRows = records.length;
-
-  console.log(chalk.bold.cyan('\nGenerating text summary...'));
-
-  const prompt = `You are a data analyst. Given the following CSV dataset info, write a concise 3-5 sentence summary:
-
-- Total rows: ${totalRows}
-- Columns: ${columns.join(', ')}
-- Group-by column analysed: "${column}"
-- Top values by count: ${top10}
-
-Describe what the data appears to be about, highlight the most common values, and note any interesting patterns.`;
-
-  const stream = await client.messages.create({
-    model: 'claude-sonnet-4-6',
-    max_tokens: 300,
-    messages: [{ role: 'user', content: prompt }],
-    stream: true,
-  });
-
-  console.log(chalk.bold('\nSummary:'));
-  process.stdout.write('  ');
-  for await (const event of stream) {
-    if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-      process.stdout.write(event.delta.text);
-    }
-  }
-  console.log('\n');
-}
-
 program
   .name('csv-analyser')
   .description('Analyse CSV data from the command line')
@@ -110,7 +69,6 @@ program
   .command('groupby <file> <column>')
   .description('Show count of each unique value in a column')
   .option('--no-graph', 'Skip the bar chart')
-  .option('--summary', 'Generate AI text summary (requires ANTHROPIC_API_KEY)')
   .action(async (file, column, opts) => {
     try {
       const records = await readCSV(file);
@@ -131,9 +89,6 @@ program
           console.log(`  ${chalk.yellow(label)}: ${chalk.white(count)}`);
         }
       }
-      if (opts.summary) {
-        await generateSummary(records, column, entries);
-      }
     } catch (err) {
       console.error(chalk.red(`Error: ${err.message}`));
       process.exit(1);
@@ -142,7 +97,7 @@ program
 
 program
   .command('analyse <file> <column>')
-  .description('Full analysis: columns, group-by chart, and AI summary')
+  .description('Full analysis: columns and group-by chart')
   .action(async (file, column) => {
     try {
       const records = await readCSV(file);
@@ -157,7 +112,6 @@ program
       listColumns(records);
       const entries = groupByCount(records, column);
       drawBarChart(entries, column);
-      await generateSummary(records, column, entries);
     } catch (err) {
       console.error(chalk.red(`Error: ${err.message}`));
       process.exit(1);
