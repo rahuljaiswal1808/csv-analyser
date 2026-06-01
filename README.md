@@ -2,11 +2,11 @@
 
 A CLI tool to analyse CSV files — list columns, count values by group, and draw ASCII bar charts.
 
-## Installation
+No dependencies required. Uses Python 3 standard library only.
 
-```bash
-npm install
-```
+## Requirements
+
+- Python 3.6+
 
 ## Usage
 
@@ -15,12 +15,12 @@ npm install
 Print all column names in a CSV file.
 
 ```bash
-node index.js columns <file>
+python3 csv_analyser.py columns <file>
 ```
 
 **Example:**
 ```bash
-node index.js columns data.csv
+python3 csv_analyser.py columns data.csv
 ```
 ```
 Columns (4):
@@ -37,7 +37,7 @@ Columns (4):
 Show how many times each unique value appears in a column, with an ASCII bar chart.
 
 ```bash
-node index.js groupby <file> <column>
+python3 csv_analyser.py groupby <file> <column>
 ```
 
 **Options:**
@@ -45,7 +45,7 @@ node index.js groupby <file> <column>
 
 **Example:**
 ```bash
-node index.js groupby data.csv department
+python3 csv_analyser.py groupby data.csv department
 ```
 ```
 Group-by count: department
@@ -62,12 +62,12 @@ Group-by count: department
 List all columns and show the group-by bar chart in one command.
 
 ```bash
-node index.js analyse <file> <column>
+python3 csv_analyser.py analyse <file> <column>
 ```
 
 **Example:**
 ```bash
-node index.js analyse data.csv city
+python3 csv_analyser.py analyse data.csv city
 ```
 ```
 Columns (4):
