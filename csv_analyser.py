@@ -37,6 +37,72 @@ def group_by(file_path, columns):
     return counts
 
 
+def parse_condition(expr):
+    """Parse 'col=value' or 'col!=value' into (col, op, value)."""
+    for op in ('!=', '='):
+        if op in expr:
+            col, _, val = expr.partition(op)
+            col, val = col.strip(), val.strip()
+            if not col:
+                raise ValueError(f'Invalid condition: "{expr}"')
+            return col, op, val
+    raise ValueError(f'Invalid condition "{expr}". Use col=value or col!=value.')
+
+
+def matches(row, conditions):
+    for col, op, val in conditions:
+        cell = row.get(col, '')
+        if op == '=' and cell != val:
+            return False
+        if op == '!=' and cell == val:
+            return False
+    return True
+
+
+def cmd_fetch(file, args):
+    available = get_columns(file)
+    if not available:
+        print("No data found.")
+        return
+
+    fetch_cols = resolve_columns(args.columns, available, file)
+
+    conditions = []
+    for expr in (args.where or []):
+        try:
+            col, op, val = parse_condition(expr)
+        except ValueError as e:
+            print(f'Error: {e}', file=sys.stderr)
+            sys.exit(1)
+        if col not in available:
+            print(f'Error: filter column "{col}" not found. Available: {", ".join(available)}', file=sys.stderr)
+            sys.exit(1)
+        conditions.append((col, op, val))
+
+    results = []
+    for row in read_csv(file):
+        if matches(row, conditions):
+            results.append({col: row[col] for col in fetch_cols})
+
+    if not results:
+        print("No matching rows.")
+        return
+
+    # Print aligned table
+    col_widths = {col: len(col) for col in fetch_cols}
+    for row in results:
+        for col in fetch_cols:
+            col_widths[col] = max(col_widths[col], len(row[col]))
+
+    header = '  '.join(col.ljust(col_widths[col]) for col in fetch_cols)
+    separator = '  '.join('-' * col_widths[col] for col in fetch_cols)
+    print(f"\n  {header}")
+    print(f"  {separator}")
+    for row in results:
+        print('  ' + '  '.join(row[col].ljust(col_widths[col]) for col in fetch_cols))
+    print(f"\n  {len(results)} row(s) matched.")
+
+
 def draw_bar_chart(entries, column):
     bar_width = 40
     max_count = entries[0][1]
@@ -113,9 +179,16 @@ def main():
     p_analyse.add_argument('columns', nargs='+', metavar='column',
                            help='Column name(s) to group by, or "all" for every column')
 
+    p_fetch = subparsers.add_parser('fetch', help='Fetch values from column(s), optionally filtered by conditions')
+    p_fetch.add_argument('file', help='Path to the CSV file')
+    p_fetch.add_argument('columns', nargs='+', metavar='column',
+                         help='Column name(s) to fetch, or "all"')
+    p_fetch.add_argument('--where', metavar='col=value', action='append',
+                         help='Filter condition (col=value or col!=value). Repeatable for AND logic.')
+
     args = parser.parse_args()
 
-    dispatch = {'columns': cmd_columns, 'groupby': cmd_groupby, 'analyse': cmd_analyse}
+    dispatch = {'columns': cmd_columns, 'groupby': cmd_groupby, 'analyse': cmd_analyse, 'fetch': cmd_fetch}
     try:
         dispatch[args.command](args.file, args)
     except FileNotFoundError:

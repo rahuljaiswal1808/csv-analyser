@@ -105,3 +105,40 @@ Group-by count: city
   London    ███████████████████████ 4
   Paris     ███████████████████████ 4
 ```
+
+---
+
+### Fetch
+
+Fetch values from one or more columns, with optional row filtering.
+Use `--where col=value` to filter rows. Repeat `--where` to AND multiple conditions.
+Supports `=` (equals) and `!=` (not equals). Use `all` to fetch every column.
+
+```bash
+python3 csv_analyser.py fetch <file> <column> [column ...] [--where col=value ...]
+python3 csv_analyser.py fetch <file> all [--where col=value ...]
+```
+
+**Examples:**
+```bash
+# Fetch name and salary for Engineering staff
+python3 csv_analyser.py fetch data.csv name salary --where department=Engineering
+
+# Fetch all columns for rows where city is London
+python3 csv_analyser.py fetch data.csv all --where city=London
+
+# Multiple AND conditions
+python3 csv_analyser.py fetch data.csv name department --where city!=London --where department!=HR
+```
+```
+  name   salary
+  -----  ------
+  Alice  95000
+  Carol  105000
+  Eve    98000
+  Henry  88000
+  Karen  110000
+  Mia    92000
+
+  6 row(s) matched.
+```
